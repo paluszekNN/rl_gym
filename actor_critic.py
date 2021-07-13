@@ -4,12 +4,13 @@ import keras
 from abc import ABC, abstractmethod
 import numpy as np
 import tensorflow as tf
+import time
 
 eps = np.finfo(np.float32).eps.item()
 
 
 class ActorCriticModel:
-    def __init__(self, input_size, layer_sizes, hidden_layer_activation, optimizer, action_size):
+    def __init__(self, input_size, layer_sizes, hidden_layer_activation, action_size):
         input_model_obs = Input(input_size)
 
         model = Dense(layer_sizes[0], activation=hidden_layer_activation)(input_model_obs)
@@ -96,7 +97,7 @@ class ActorCriticRL(RLAlgorithm):
         grads = tape.gradient(loss_value, self.model.model.trainable_variables)
         optimizer.apply_gradients(zip(grads, self.model.model.trainable_variables))
 
-    def train(self, env, epochs):
+    def train(self, env, max_time):
         huber_loss = keras.losses.Huber()
         optimizer = keras.optimizers.Adam(learning_rate=0.01)
         action_probs_history = []
@@ -106,6 +107,7 @@ class ActorCriticRL(RLAlgorithm):
         score = 0
         running_rewards = []
         episode_count = 0
+        time_start = time.time()
         while True:
             state = env.reset()
             episode_reward = 0
@@ -150,6 +152,7 @@ class ActorCriticRL(RLAlgorithm):
             if score > 195:  # Condition to consider the task solved
                 print("Solved at episode {}!".format(episode_count))
                 break
-            if episode_count > epochs:
+            if time.time() - time_start > max_time:
                 break
+
         return running_rewards

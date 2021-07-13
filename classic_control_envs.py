@@ -38,7 +38,7 @@ if __name__ == '__main__':
     input_shape = env.observation_space.shape
 
     cart_pole = Gym(ActorCriticRL(
-        ActorCriticModel(input_shape, [128], 'relu', 'adam', env.action_space.n), 0.99), name)
-    scores = cart_pole.train(500)
+        ActorCriticModel(input_shape, [128], 'relu', env.action_space.n), 0.99), name)
+    scores = cart_pole.train(120)
 
     cart_pole.test(300)
