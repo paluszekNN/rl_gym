@@ -1,12 +1,11 @@
-from __future__ import annotations
-from abc import ABC, abstractmethod
 import gym
+from actor_critic import *
 
 
 class Gym:
     def __init__(self, algorithm: RLAlgorithm, env: str):
         self.env = gym.make(env)
-        self.env.reset()
+        self.observation = self.env.reset()
         self._algorithm = algorithm
         self.history = []
 
@@ -18,21 +17,28 @@ class Gym:
     def algorithm(self, algorithm: RLAlgorithm) -> None:
         self._algorithm = algorithm
 
-    def do_some_business_logic(self) -> None:
-        self.history.append(self.env.step(self._algorithm.action(self.env)))
+    def step(self) -> None:
+        self.observation, _, _, _ = self.env.step(self._algorithm.action(self.env, self.observation))
+        self.env.render()
+
+    def train(self, epochs):
+        self.history.append(self._algorithm.train(self.env, epochs))
+
+    def test(self, steps):
+        self.observation = self.env.reset()
+        for _ in range(steps):
+            self.step()
+        self.env.close()
 
 
-class RLAlgorithm(ABC):
-    @abstractmethod
-    def action(self, env):
-        pass
+if __name__ == '__main__':
+    name = 'CartPole-v0'
+    env = gym.make(name)
+    observation = env.reset()
+    input_shape = env.observation_space.shape
 
+    cart_pole = Gym(ActorCriticRL(
+        ActorCriticModel(input_shape, [128], 'relu', 'adam', env.action_space.n), 0.99), name)
+    scores = cart_pole.train(500)
 
-class PolicyGradient(RLAlgorithm):
-    def action(self, env):
-        return None
-
-
-class RandomActions(RLAlgorithm):
-    def action(self, env):
-        return env.action_space.sample()
+    cart_pole.test(300)
