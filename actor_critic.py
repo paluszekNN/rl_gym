@@ -1,10 +1,10 @@
 from keras import Input, Model
 from keras.layers import Dense
 import keras
-from abc import ABC, abstractmethod
 import numpy as np
 import tensorflow as tf
 import time
+from classic_control_envs import RLAlgorithm
 
 eps = np.finfo(np.float32).eps.item()
 
@@ -27,24 +27,17 @@ class ActorCriticModel:
         return self.model(state)
 
 
-class RLAlgorithm(ABC):
-    @abstractmethod
-    def action(self, env, observation):
-        pass
-
-    def train(self, env, epochs):
-        pass
-
-
 class RandomActions(RLAlgorithm):
     def action(self, env, observation):
         return env.action_space.sample()
 
 
 class ActorCriticRL(RLAlgorithm):
-    def __init__(self, model, gamma):
+    def __init__(self, model, gamma, max_time, env):
         self.model = model
         self.gamma = gamma
+        self.max_time = max_time
+        self.env = env
 
     def action(self, env, state):
         state = tf.convert_to_tensor(state)
@@ -97,7 +90,7 @@ class ActorCriticRL(RLAlgorithm):
         grads = tape.gradient(loss_value, self.model.model.trainable_variables)
         optimizer.apply_gradients(zip(grads, self.model.model.trainable_variables))
 
-    def train(self, env, max_time):
+    def train(self):
         huber_loss = keras.losses.Huber()
         optimizer = keras.optimizers.Adam(learning_rate=0.01)
         action_probs_history = []
@@ -109,7 +102,7 @@ class ActorCriticRL(RLAlgorithm):
         episode_count = 0
         time_start = time.time()
         while True:
-            state = env.reset()
+            state = self.env.reset()
             episode_reward = 0
             with tf.GradientTape() as tape:
                 for timestep in range(1, max_steps_per_episode):
@@ -118,10 +111,10 @@ class ActorCriticRL(RLAlgorithm):
                     action_probs, critic_value = self.model.get_action_prob_and_critic_value(state)
                     critic_value_history.append(critic_value[0, 0])
 
-                    action = self.get_action_from_prob_dist(action_probs, env.action_space.n)
+                    action = self.get_action_from_prob_dist(action_probs, self.env.action_space.n)
                     action_probs_history.append(self.function(action_probs[0, action]))
 
-                    state, reward, done, _ = env.step(action)
+                    state, reward, done, _ = self.env.step(action)
                     rewards_history.append(reward)
                     episode_reward += reward
 
@@ -146,13 +139,12 @@ class ActorCriticRL(RLAlgorithm):
             # Log details
             episode_count += 1
             if episode_count % 10 == 0:
-                template = "running reward: {:.2f} at episode {}"
-                print(template.format(score, episode_count))
+                print(f"Time{time.time() - time_start} running reward: {score:.2f} at episode {episode_count}")
 
             if score > 195:  # Condition to consider the task solved
                 print("Solved at episode {}!".format(episode_count))
                 break
-            if time.time() - time_start > max_time:
+            if time.time() - time_start > self.max_time:
                 break
 
         return running_rewards

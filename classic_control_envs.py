@@ -1,5 +1,14 @@
 import gym
-from actor_critic import *
+from abc import ABC, abstractmethod
+
+
+class RLAlgorithm(ABC):
+    @abstractmethod
+    def action(self, env, obs):
+        pass
+
+    def train(self):
+        pass
 
 
 class Gym:
@@ -21,24 +30,11 @@ class Gym:
         self.observation, _, _, _ = self.env.step(self._algorithm.action(self.env, self.observation))
         self.env.render()
 
-    def train(self, epochs):
-        self.history.append(self._algorithm.train(self.env, epochs))
+    def train(self):
+        self.history.append(self._algorithm.train())
 
     def test(self, steps):
         self.observation = self.env.reset()
         for _ in range(steps):
             self.step()
         self.env.close()
-
-
-if __name__ == '__main__':
-    name = 'CartPole-v0'
-    env = gym.make(name)
-    observation = env.reset()
-    input_shape = env.observation_space.shape
-
-    cart_pole = Gym(ActorCriticRL(
-        ActorCriticModel(input_shape, [128], 'relu', env.action_space.n), 0.99), name)
-    scores = cart_pole.train(120)
-
-    cart_pole.test(300)
